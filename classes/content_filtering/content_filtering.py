@@ -44,16 +44,18 @@ class Content_filtering:
         self.rating_col = rating_col        
     
     def _content_filtering(self, X, y, reg_model):        
-        brukerliste = X[self.user_col].drop_duplicates()
         df = pd.concat([X, y], axis=1)
-        for bruker in brukerliste:            
-            df_current_user = df.loc[df[self.user_col] == bruker]
-            current_X = df_current_user[self.feature_cols]
-            current_y = df_current_user[self.rating_col]
+
+        def create_model(dfx):
+            X = dfx[self.feature_cols]
+            y = dfx[self.rating_col]
             reg = copy.copy(reg_model)
-            reg.fit(current_X, current_y)
-            self.model[bruker] = reg
-        return
+            reg.fit(X, y)
+            bruker_id = dfx.iat[0, 0]          
+            self.model[bruker_id] = reg
+            
+        df.groupby([self.user_col]).apply(create_model)
+        return       
     
     def fit(self, X, y):        
         self._content_filtering(X, y, self.reg_model)
