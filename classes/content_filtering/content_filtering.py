@@ -51,7 +51,7 @@ class Content_filtering:
             y = dfx[self.rating_col]
             reg = copy.copy(reg_model)
             reg.fit(X, y)
-            bruker_id = dfx.iat[0, 0]          
+            bruker_id = dfx.iat[0, 0]
             self.model[bruker_id] = reg
             
         df.groupby([self.user_col]).apply(create_model)
@@ -61,31 +61,19 @@ class Content_filtering:
         self._content_filtering(X, y, self.reg_model)
         
     def predict(self, X, return_as_array=True):
-        brukerliste = X[self.user_col].drop_duplicates()
-        columnlist = X.columns.tolist()        
-        columnlist.append(self.rating_col)       
-        predictions = pd.DataFrame([], columns=columnlist)
-        for bruker in brukerliste:
-            X_current_user = X.loc[X[self.user_col] == bruker]
-            try:
-                y_pred = pd.Series(self.model[bruker].predict(X_current_user[self.feature_cols]))
-            except:
-                y_pred = pd.Series([3.0]*len(X_current_user.index))
-            y_pred.name = self.rating_col            
-            X_y_pred = pd.concat( \
-                [ \
-                    X_current_user[self.user_col].reset_index(drop=True), \
-                    X_current_user[self.item_col].reset_index(drop=True), \
-                    X_current_user[self.feature_cols].reset_index(drop=True), \
-                    y_pred \
-                ], \
-                axis=1)
-            predictions = pd.concat([predictions, X_y_pred], axis=0)            
-        predictions[self.rating_col] = predictions[self.rating_col].where(predictions[self.rating_col] <= 5.0, 5.0)        
-        predictions[self.rating_col] = predictions[self.rating_col].where(predictions[self.rating_col] >= 1.0, 1.0)
-        predictions = predictions.set_index([self.user_col, self.item_col]).reindex(X.set_index([self.user_col, self.item_col]).index)        
-        predictions.rename(columns={'value': self.rating_col}, inplace=True)
-        if return_as_array:
-            return predictions[self.rating_col].values
-        else:
-            return predictions[self.rating_col]
+
+        def try_predict(row):
+            try:                
+                return self.model[row[self.user_col]].predict(row[self.feature_cols].values.reshape(1, -1))[0]           
+            except:                
+                return pd.Series([3.0]*len(row))
+            
+        predictions = X.apply(try_predict, axis=1)        
+        predictions = predictions.where(predictions <= 5.0, 5.0)        
+        predictions = predictions.where(predictions >= 1.0, 1.0)                 
+        if return_as_array:            
+            return predictions.values
+        else:            
+            output_series = pd.Series(predictions.values)
+            output_series.name = self.rating_col
+            return output_series
