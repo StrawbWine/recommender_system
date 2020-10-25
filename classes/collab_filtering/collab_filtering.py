@@ -80,12 +80,13 @@ class Collab_filtering:
                 df_out = df_wide.where(df_wide.notna(), df_work)
                 df_out = df_out.fillna(0.0)                
         else:
-            for bruker in df_wide.index:                
-                this_row = df_wide.loc[bruker]
-                my_buddies = all_buddies[bruker].reset_index()[self.user_col]            
-                df_work.loc[bruker] = df_wide.loc[list(my_buddies), :].mean()
-                df_out = df_wide.where(df_wide.notna(), df_work)
-                df_out = df_out.fillna(0.0)                
+            def get_avg_buddy_ratings(row):
+                my_buddies = all_buddies[row.name].reset_index()[self.user_col]
+                buddy_avg_ratings = df_wide.loc[list(my_buddies), :].mean()
+                return buddy_avg_ratings
+            df_work = df_wide.apply(get_avg_buddy_ratings, axis=1)
+            df_out = df_wide.where(df_wide.notna(), df_work)
+            df_out = df_out.fillna(0.0)
         df_out = df_out.add(means, axis=0)    
         return df_out
     
