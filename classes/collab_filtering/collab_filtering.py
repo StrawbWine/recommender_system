@@ -72,13 +72,14 @@ class Collab_filtering:
         df_work = df_wide.copy()
         all_buddies = self._get_buddies(df_wide, self.n_buddies)
         if use_weights:            
-            for bruker in df_wide.index:                
-                this_row = df_wide.loc[bruker]
-                my_buddies = all_buddies[bruker].reset_index()[self.user_col]
-                weights = all_buddies[bruker]/all_buddies[bruker].mean()
-                df_work.loc[bruker] = self._weighted_avg(df_wide.loc[list(my_buddies), :], weights)
-                df_out = df_wide.where(df_wide.notna(), df_work)
-                df_out = df_out.fillna(0.0)                
+            def get_weighted_avg_buddy_ratings(row):
+                my_buddies = all_buddies[row.name].reset_index()[self.user_col]
+                weights = all_buddies[row.name]/all_buddies[row.name].mean()
+                buddy_weighted_avg_ratings = self._weighted_avg(df_wide.loc[list(my_buddies), :], weights)
+                return buddy_weighted_avg_ratings
+            df_work = df_wide.apply(get_weighted_avg_buddy_ratings, axis=1)
+            df_out = df_wide.where(df_wide.notna(), df_work)
+            df_out = df_out.fillna(0.0)                
         else:
             def get_avg_buddy_ratings(row):
                 my_buddies = all_buddies[row.name].reset_index()[self.user_col]
