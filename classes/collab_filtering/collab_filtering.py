@@ -26,64 +26,81 @@ from sklearn.linear_model import SGDRegressor
 from sklearn.ensemble import BaggingRegressor
 from sklearn.linear_model import TheilSenRegressor
 
-class Content_filtering:
+class Collab_filtering:    
     
-    def __init__(
-        self, 
-        feature_cols,
-        user_col='BrukerID',
-        item_col = 'FilmID',
-        rating_col='Rangering',
-        reg_model=LinearRegression()
-    ):
-        self.model = {} 
-        self.reg_model = reg_model
+    def __init__(self, n_buddies=50, use_weights=False, user_col='BrukerID', item_col='FilmID', rating_col='Rangering'):        
+        self.model = None
+        self.n_buddies = n_buddies
+        self.use_weights = use_weights
         self.user_col = user_col
         self.item_col = item_col
-        self.feature_cols = feature_cols
         self.rating_col = rating_col        
-    
-    def _content_filtering(self, X, y, reg_model):        
-        brukerliste = X[self.user_col].drop_duplicates()
-        df = pd.concat([X, y], axis=1)
-        for bruker in brukerliste:            
-            df_current_user = df.loc[df[self.user_col] == bruker]
-            current_X = df_current_user[self.feature_cols]
-            current_y = df_current_user[self.rating_col]
-            reg = copy.copy(reg_model)
-            reg.fit(current_X, current_y)
-            self.model[bruker] = reg
-        return
-    
-    def fit(self, X, y):        
-        self._content_filtering(X, y, self.reg_model)
+
+    # Private methods    
         
-    def predict(self, X, return_as_array=True):
-        brukerliste = X[self.user_col].drop_duplicates()
-        columnlist = X.columns.tolist()        
-        columnlist.append(self.rating_col)       
-        predictions = pd.DataFrame([], columns=columnlist)
-        for bruker in brukerliste:
-            X_current_user = X.loc[X[self.user_col] == bruker]
-            try:
-                y_pred = pd.Series(self.model[bruker].predict(X_current_user[self.feature_cols]))
-            except:
-                y_pred = pd.Series([3.0]*len(X_current_user.index))
-            y_pred.name = self.rating_col            
-            X_y_pred = pd.concat( \
-                [ \
-                    X_current_user[self.user_col].reset_index(drop=True), \
-                    X_current_user[self.item_col].reset_index(drop=True), \
-                    X_current_user[self.feature_cols].reset_index(drop=True), \
-                    y_pred \
-                ], \
-                axis=1)
-            predictions = pd.concat([predictions, X_y_pred], axis=0)            
-        predictions[self.rating_col] = predictions[self.rating_col].where(predictions[self.rating_col] <= 5.0, 5.0)        
-        predictions[self.rating_col] = predictions[self.rating_col].where(predictions[self.rating_col] >= 1.0, 1.0)
-        predictions = predictions.set_index([self.user_col, self.item_col]).reindex(X.set_index([self.user_col, self.item_col]).index)        
-        predictions.rename(columns={'value': self.rating_col}, inplace=True)
-        if return_as_array:
-            return predictions[self.rating_col].values
+    def _to_relative(self, df):
+        df_user_mean_ratings = df.groupby([self.user_col])[self.rating_col].mean()
+        df_user_mean_ratings.name = 'User_mean_rating'
+        df_out = pd.merge(
+            df,
+            df_user_mean_ratings,
+            how='inner',
+            on=self.user_col)
+        df_out[self.rating_col] = df_out[self.rating_col] - df_out['User_mean_rating']
+        return df_out
+    
+    def _to_wide(self, df):        
+        df_rel = df[[self.user_col, self.item_col, self.rating_col]]
+        df_rel_wide = df_rel.pivot(index=self.user_col, columns=self.item_col, values=self.rating_col)
+        return df_rel_wide
+    
+    def _weighted_avg(self, values, weights):
+        w_avg = (values * weights).sum() / weights.sum()
+        return w_avg
+    
+    def _get_buddies(self, df, n_buddies):
+        df = df.fillna(0.0)
+        df_corrs = df.T.corr()
+        buddies = {}
+        for bruker in df.index:    
+            buddies[bruker] = df_corrs[bruker].nlargest(n_buddies)[1:]
+        return buddies
+
+    def _collab_filtering(self, df, use_weights):
+        means = self._to_wide(df).T.mean()
+        df_wide = self._to_wide(self._to_relative(df))        
+        df_work = df_wide.copy()
+        all_buddies = self._get_buddies(df_wide, self.n_buddies)
+        if use_weights:            
+            for bruker in df_wide.index:                
+                this_row = df_wide.loc[bruker]
+                my_buddies = all_buddies[bruker].reset_index()[self.user_col]
+                weights = all_buddies[bruker]/all_buddies[bruker].mean()
+                df_work.loc[bruker] = self._weighted_avg(df_wide.loc[list(my_buddies), :], weights)
+                df_out = df_wide.where(df_wide.notna(), df_work)
+                df_out = df_out.fillna(0.0)                
         else:
-            return predictions[self.rating_col]
+            for bruker in df_wide.index:                
+                this_row = df_wide.loc[bruker]
+                my_buddies = all_buddies[bruker].reset_index()[self.user_col]            
+                df_work.loc[bruker] = df_wide.loc[list(my_buddies), :].mean()
+                df_out = df_wide.where(df_wide.notna(), df_work)
+                df_out = df_out.fillna(0.0)                
+        df_out = df_out.add(means, axis=0)    
+        return df_out
+    
+    # Public methods
+    
+    def fit(self, X, y):
+        df = pd.concat([X, y], axis=1)        
+        self.model = self._collab_filtering(df, self.use_weights)
+        
+    def predict(self, df, return_as_array=True):
+        melted = pd.melt(self.model.reset_index(), id_vars=[self.user_col], value_vars=self.model.columns).dropna()
+        melted = melted.reset_index(drop=True)
+        predictions = melted.set_index([self.user_col, self.item_col]).reindex(df.set_index([self.user_col, self.item_col]).index)        
+        predictions.rename(columns={'value': self.rating_col}, inplace=True)
+        predictions = predictions['Rangering'].fillna(predictions['Rangering'].dropna().mean())
+        if return_as_array:
+            return predictions.values
+        return predictions
