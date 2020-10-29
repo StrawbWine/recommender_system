@@ -8,10 +8,13 @@
 
 import numpy as np
 import pandas as pd
+from sklearn.impute import SimpleImputer
 
 
 # <h2>Dataset "Bruker"</h2>
 
+# I could easily figure out how to load the data correctly into a pandas dataframe by looking at the json file and comparing with the pandas read_json() documentation. 
+# 
 # Loading dataset and having an initial look at it:
 
 # In[2]:
@@ -27,7 +30,7 @@ df_bruker.head()
 round(df_bruker.describe(),2)
 
 
-# Check for duplicate user IDs
+# Check for duplicate user IDs:
 
 # In[4]:
 
@@ -35,7 +38,9 @@ round(df_bruker.describe(),2)
 df_bruker['BrukerID'].drop_duplicates().shape[0] == df_bruker['BrukerID'].shape[0]
 
 
-# Investigate possible values for gender
+# The number of distinct rows in the 'BrukerID' column is the same as number of rows in the full column. Thus I can conclude that the all of the BrukerIDs are indeed unique.
+
+# Investigate possible values for gender:
 
 # In[5]:
 
@@ -49,7 +54,7 @@ df_bruker['Kjonn'].drop_duplicates()
 df_bruker['Kjonn'].value_counts()
 
 
-# Investigate possible values for age
+# Investigate possible values for age:
 
 # In[7]:
 
@@ -75,12 +80,14 @@ df_bruker.loc[df_bruker['Postkode'].str.len() > 5].sort_values(by=['Postkode'], 
 df_bruker.isna().sum()
 
 
-# The easiest way to fix the dataset is to just drop the rows with missing values:
+# Three of the columns with missing data are nominal categorical data, and the last one is ordinal categorical data. If you are hellbent on completing these rows, you could apply multivariate imputation and look for correlations between the columns. For now I will not use these features in my machine learning models anyways, so I'll just simply replace the missing values with the most common value for each feature. Before directly using the imputer, I conform the missing value to np.nan.
 
 # In[10]:
 
 
-df_bruker_cleaned = df_bruker.dropna()
+df_bruker = df_bruker.fillna(np.nan)
+imputer = SimpleImputer(missing_values=np.nan, strategy='most_frequent')
+df_bruker_cleaned = pd.DataFrame(imputer.fit_transform(df_bruker), columns=df_bruker.columns)
 df_bruker_cleaned.head()
 
 
