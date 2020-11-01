@@ -2,22 +2,44 @@
 <html>
     <head>
         <title>Data Science API</title>
+        <style>
+            body {
+              background-color: rgb(230, 250, 238);
+            }
+            
+            h1 {
+              color: rgb(2, 107, 110);              
+              font-size: 300%;
+            }
+            
+            h3 {
+              color: rgb(2, 107, 110);              
+              font-size: 200%;
+            }
+
+            * {
+                text-align: center;
+            }
+            </style>
     </head>
 
     <body>
         <div class='login'>
-            <h1>Predict house price</h1>
+            <h1 style="color:blue;text-align: center;" >Predict movie ratings!</h1>
 
             <form action="{{url_for('predict')}}" method='post'>
-                <input type='text' name='size' placeholder='Size (in m2)' required='required' />
-                <input type='text' name='bedrooms' placeholder='Bedrooms' required='required' />
-                <input type='text' name='floor' placeholder='Floor' required='required' />
+                <input type='text' name='BrukerID' placeholder='BrukerID' required='required' />
+                <input type='text' name='FilmID' placeholder='FilmID' required='required' />                
 
                 <button type='submit' class='btn btn-primary btn-block btn-large'>Predict</button>
             </form>
 
             <br>
-            {{prediction_text}}
+            <h3>{{prediction_text}}</h3>
+            <br>
+            <h1>{{rounded_prediction}}</h1>
+            <br>
+            <h3>({{prediction}})</h3>
         </div>
     </body>
 </html>
