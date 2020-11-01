@@ -29,6 +29,19 @@ from sklearn.linear_model import TheilSenRegressor
 from flask import Flask, request, jsonify, render_template
 from waitress import serve
 
+"""
+Due to the high computational time (~3hrs) required to create a csv file with predictions for all possible combinations in the full dataset,
+I will for this part just use the collaborative filtering part of my model.
+This will lead to somewhat higher RMSE on predictions than would have been using the full model.
+
+If you do have a couple of hours of compute time to spare, feel free to import the full dataset into the "predict.ipynb" file to generate a
+csv with the complete predicting power of my full model.
+All combos of BrukerID and FilmID are still included in this version, just with slightly less predictive power.
+
+I apologize for loading the classes right into app.py, but I just wanted to make sure I followed the format you wanted.
+Ideally, the classes should of course reside in separate files and get imported.
+"""
+
 class Content_filtering:
     
     def __init__(
