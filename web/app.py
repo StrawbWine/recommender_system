@@ -33,6 +33,7 @@ from waitress import serve
 Due to the high computational time (~3hrs) required to create a csv file with predictions for all possible combinations in the full dataset,
 I will for this part just use the collaborative filtering part of my model.
 This will lead to somewhat higher RMSE on predictions than would have been using the full model.
+Another possibility is to load the 'predictions.csv' file here instead of model.pkl, which uses full power predictions, but only on the small dataset.
 
 If you do have a couple of hours of compute time to spare, feel free to import the full dataset into the "predict.ipynb" file to generate a
 csv with the complete predicting power of my full model.
