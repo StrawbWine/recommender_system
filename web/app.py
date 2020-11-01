@@ -38,8 +38,8 @@ If you do have a couple of hours of compute time to spare, feel free to import t
 csv with the complete predicting power of my full model.
 All combos of BrukerID and FilmID are still included in this version, just with slightly less predictive power.
 
-I apologize for loading the classes right into app.py, but I just wanted to make sure I followed the format you wanted.
-Ideally, the classes should of course reside in separate files and get imported.
+I apologize for putting the code for the classes right into app.py, but I just wanted to make sure I followed the file structure/format you wanted.
+Ideally, the classes should of course reside in separate files and be imported.
 """
 
 class Content_filtering:
